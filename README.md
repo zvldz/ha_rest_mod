@@ -16,7 +16,7 @@ Add repository url. Category - Integration. Read more on https://hacs.xyz/docs/f
 * Added `payload_template`(sensor/binary_sensor).
 * Added `state_resource_template`(switch).
 * Added `resource_template`(switch).
-* Added configuration variable proxy_url(sensor/binary_sensor). Support for  socks/http proxies.
+* Added configuration variable `proxy_url`(sensor/binary_sensor). Support for  socks/http proxies.
 * `headers` with template support(sensor/binary_sensor/switch).
 
 
