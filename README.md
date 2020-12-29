@@ -26,6 +26,6 @@ Add repository url. Category - Integration. Read more on https://hacs.xyz/docs/f
 sensor:
   - platform: rest_mod
     resource: http://IP_ADDRESS/ENDPOINT
-    proxy_url: "socks5://127.0.0.1:9050"
+    proxy_url: "http://127.0.0.1:3128"
 ```
 
