@@ -236,7 +236,7 @@ class RestSensorMod(Entity):
     def _update_from_rest_data(self):
         """Update state from the rest data."""
         value = self.rest.data
-        _LOGGER.debug("Data fetched from resource: %s", value)
+        _LOGGER.debug("[%s] Data fetched from resource: %s", self._name, value)
         if self.rest.headers is not None:
             # If the http request failed, headers will be None
             content_type = self.rest.headers.get("content-type")
@@ -248,12 +248,13 @@ class RestSensorMod(Entity):
             ):
                 try:
                     value = json.dumps(xmltodict.parse(value))
-                    _LOGGER.debug("JSON converted from XML: %s", value)
+                    _LOGGER.debug("[%s] JSON converted from XML: %s", self._name, value)
                 except ExpatError:
                     _LOGGER.warning(
-                        "REST xml result could not be parsed and converted to JSON"
+                        "[%s] REST xml result could not be parsed and converted to JSON",
+                        self._name
                     )
-                    _LOGGER.debug("Erroneous XML: %s", value)
+                    _LOGGER.debug("[%s] Erroneous XML: %s", self._name, value)
 
         if self._json_attrs:
             self._attributes = {}
@@ -274,15 +275,16 @@ class RestSensorMod(Entity):
                         self._attributes = attrs
                     else:
                         _LOGGER.warning(
-                            "JSON result was not a dictionary"
-                            " or list with 0th element a dictionary"
+                            "[%s] JSON result was not a dictionary"
+                            " or list with 0th element a dictionary",
+                            self._name
                         )
                 except ValueError:
-                    _LOGGER.warning("REST result could not be parsed as JSON")
-                    _LOGGER.debug("Erroneous JSON: %s", value)
+                    _LOGGER.warning("[%s] REST result could not be parsed as JSON", self._name)
+                    _LOGGER.debug("[%s] Erroneous JSON: %s", self._name, value)
 
             else:
-                _LOGGER.warning("Empty reply found when expecting JSON data")
+                _LOGGER.warning("[%s] Empty reply found when expecting JSON data", self._name)
 
         if value is not None and self._value_template is not None:
             value = self._value_template.async_render_with_possible_json_value(

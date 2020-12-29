@@ -135,14 +135,15 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
         req = await switch.get_device_state(hass)
         if req.status >= HTTP_BAD_REQUEST:
-            _LOGGER.warning("Got non-ok response from resource: %s", req.status)
+            _LOGGER.warning("[%s] Got non-ok response from resource: %s", name, req.status)
     except (TypeError, ValueError):
         _LOGGER.error(
-            "Missing resource or schema in configuration. "
-            "Add http:// or https:// to your URL"
+            "[%s] Missing resource or schema in configuration. "
+            "Add http:// or https:// to your URL",
+            self._name
         )
     except (asyncio.TimeoutError, aiohttp.ClientError):
-        _LOGGER.warning("No route to resource/endpoint: %s", resource)
+        _LOGGER.warning("[%s] No route to resource/endpoint: %s", name, resource)
 
     async_add_entities([switch])
 
@@ -191,7 +192,7 @@ class RestSwitchMod(SwitchEntity):
     @property
     def available(self):
         """Return the availability of this sensor."""
-        _LOGGER.debug("State: %s", self._state)
+        _LOGGER.debug("[%s] State: %s", self._name, self._state)
         return self._state is not None
 
     @property
@@ -215,10 +216,10 @@ class RestSwitchMod(SwitchEntity):
                 self._state = True
             else:
                 _LOGGER.warning(
-                    "Can't turn on %s. Is resource/endpoint offline?", self._resource
+                    "[%s] Can't turn on %s. Is resource/endpoint offline?", self._name, self._resource
                 )
         except (asyncio.TimeoutError, aiohttp.ClientError):
-            _LOGGER.warning("Error while switching on %s", self._resource)
+            _LOGGER.warning("[%s] Error while switching on %s", self._name, self._resource)
 
     async def async_turn_off(self, **kwargs):
         """Turn the device off."""
@@ -230,10 +231,10 @@ class RestSwitchMod(SwitchEntity):
                 self._state = False
             else:
                 _LOGGER.warning(
-                    "Can't turn off %s. Is resource/endpoint offline?", self._resource
+                    "[%s] Can't turn off %s. Is resource/endpoint offline?", self._name, self._resource
                 )
         except (asyncio.TimeoutError, aiohttp.ClientError):
-            _LOGGER.warning("Error while switching off %s", self._resource)
+            _LOGGER.warning("[%s] Error while switching off %s", self._name, self._resource)
 
     async def set_device_state(self, body):
         """Send a state update to the device."""
@@ -262,9 +263,9 @@ class RestSwitchMod(SwitchEntity):
         try:
             await self.get_device_state(self.hass)
         except asyncio.TimeoutError:
-            _LOGGER.warning("Timed out while fetching data")
+            _LOGGER.warning("[%s] Timed out while fetching data", self._name)
         except aiohttp.ClientError as err:
-            _LOGGER.warning("Error while fetching data: %s", err)
+            _LOGGER.warning("[%s] Error while fetching data: %s", self._name, err)
 
     async def get_device_state(self, hass):
         """Get the latest data from REST API and update the state."""
