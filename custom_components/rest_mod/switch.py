@@ -295,14 +295,14 @@ class RestSwitchMod(SwitchEntity):
             )
             text = await req.text()
 
-        _LOGGER.debug("Raw response is (%s): %s", req.status, text)
+        _LOGGER.debug("[%s] Raw response is (%s): %s", self._name, req.status, text)
 
         if self._is_on_template is not None:
             text = self._is_on_template.async_render_with_possible_json_value(
                 text, "None"
             )
 
-            _LOGGER.debug("Value after template rendering: %s", text)
+            _LOGGER.debug("[%s] Value after template rendering: %s", self._name, text)
             text = text.lower()
 
             if text == "true":
