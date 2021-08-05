@@ -3,8 +3,6 @@ import logging
 
 import httpx
 
-"""from homeassistant.helpers.httpx_client import get_async_client"""
-
 DEFAULT_TIMEOUT = 10
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,6 +36,7 @@ class RestDataMod:
         self._verify_ssl = verify_ssl
         self._async_client = None
         self.data = None
+        self.last_exception = None
         self.headers = None
 
         if proxy_url is not None:
@@ -56,7 +55,7 @@ class RestDataMod:
         """Set url."""
         self._resource = url
 
-    async def async_update(self):
+    async def async_update(self, log_errors=True):
         """Get the latest data from REST service with provided method."""
         headers = {}
         if self._headers:
@@ -80,6 +79,10 @@ class RestDataMod:
             self.data = response.text
             self.headers = response.headers
         except httpx.RequestError as ex:
-            _LOGGER.warning("Error fetching data: %s failed with %s", self._resource, ex)
+            if log_errors:
+                _LOGGER.warning(
+                    "Error fetching data: %s failed with %s", self._resource, ex
+                )
+            self.last_exception = ex
             self.data = None
             self.headers = None

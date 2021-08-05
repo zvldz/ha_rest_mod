@@ -29,10 +29,7 @@ from homeassistant.const import (
     HTTP_OK,
 )
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.reload import setup_reload_service
 from homeassistant.helpers.template import Template
-
-from . import DOMAIN, PLATFORMS
 
 CONF_DATA = "data"
 CONF_DATA_TEMPLATE = "data_template"
@@ -73,8 +70,6 @@ _LOGGER = logging.getLogger(__name__)
 
 def get_service(hass, config, discovery_info=None):
     """Get the RESTful notification service."""
-    setup_reload_service(hass, DOMAIN, PLATFORMS)
-
     resource = config.get(CONF_RESOURCE)
     method = config.get(CONF_METHOD)
     headers = config.get(CONF_HEADERS)
@@ -213,7 +208,7 @@ class RestNotificationServiceMod(BaseNotificationService):
         ):
             _LOGGER.exception(
                 "[%s] Server error. Response %d: %s:", self._name, response.status_code, response.reason
-            )
+        )
         elif (
             response.status_code >= HTTP_BAD_REQUEST
             and response.status_code < HTTP_INTERNAL_SERVER_ERROR

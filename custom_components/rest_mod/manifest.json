@@ -1,8 +1,10 @@
 {
   "domain": "rest_mod",
   "name": "RESTful MOD",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "documentation": "https://github.com/zvldz/ha_rest_mod",
   "requirements": ["jsonpath==0.82", "xmltodict==0.12.0"],
-  "codeowners": []
+  "after_dependencies": ["input_text", "template"],
+  "codeowners": [],
+  "iot_class": "local_polling"
 }
