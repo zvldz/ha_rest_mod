@@ -83,13 +83,13 @@ class RestBinarySensorMod(RestEntity, BinarySensorEntity):
         payload_template,
     ):
         """Initialize a REST binary sensor."""
-        super().__init__(
-            coordinator, rest, name, device_class, resource_template, force_update, payload_template,
-        )
+        super().__init__(coordinator, rest, name, resource_template, force_update, payload_template)
         self._state = False
         self._previous_data = None
         self._value_template = value_template
         self._is_on = None
+
+        self._attr_device_class = device_class
 
     @property
     def is_on(self):

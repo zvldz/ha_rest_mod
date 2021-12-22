@@ -1,13 +1,19 @@
 """Support for RESTful switches."""
 import asyncio
+from http import HTTPStatus
 import logging
 
 import aiohttp
 import async_timeout
 import voluptuous as vol
 
-from homeassistant.components.switch import PLATFORM_SCHEMA, SwitchEntity
+from homeassistant.components.switch import (
+    DEVICE_CLASSES_SCHEMA,
+    PLATFORM_SCHEMA,
+    SwitchEntity,
+)
 from homeassistant.const import (
+    CONF_DEVICE_CLASS,
     CONF_HEADERS,
     CONF_METHOD,
     CONF_NAME,
@@ -18,11 +24,9 @@ from homeassistant.const import (
     CONF_TIMEOUT,
     CONF_USERNAME,
     CONF_VERIFY_SSL,
-    HTTP_BAD_REQUEST,
-    HTTP_OK,
 )
+from homeassistant.helpers import config_validation as cv, template
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
 CONF_BODY_OFF = "body_off"
@@ -46,8 +50,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Exclusive(CONF_RESOURCE_TEMPLATE, CONF_RESOURCE): cv.template,
         vol.Exclusive(CONF_STATE_RESOURCE, CONF_STATE_RESOURCE): cv.string,
         vol.Exclusive(CONF_STATE_RESOURCE_TEMPLATE, CONF_STATE_RESOURCE): cv.template,
-        vol.Optional(CONF_HEADERS): vol.Schema({cv.string: cv.template}),
-        vol.Optional(CONF_PARAMS): {cv.string: cv.string},
+        vol.Optional(CONF_HEADERS): {cv.string: cv.template},
+        vol.Optional(CONF_PARAMS): {cv.string: cv.template},
         vol.Optional(CONF_BODY_OFF, default=DEFAULT_BODY_OFF): cv.template,
         vol.Optional(CONF_BODY_ON, default=DEFAULT_BODY_ON): cv.template,
         vol.Optional(CONF_IS_ON_TEMPLATE): cv.template,
@@ -55,6 +59,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             vol.Lower, vol.In(SUPPORT_REST_METHODS)
         ),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
         vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): cv.positive_int,
         vol.Inclusive(CONF_USERNAME, "authentication"): cv.string,
         vol.Inclusive(CONF_PASSWORD, "authentication"): cv.string,
@@ -62,9 +67,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-PLATFORM_SCHEMA = vol.All(
-    cv.has_at_least_one_key(CONF_RESOURCE, CONF_RESOURCE_TEMPLATE), PLATFORM_SCHEMA
-)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the RESTful switch."""
@@ -75,6 +77,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     headers = config.get(CONF_HEADERS)
     params = config.get(CONF_PARAMS)
     name = config.get(CONF_NAME)
+    device_class = config.get(CONF_DEVICE_CLASS)
     username = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
     resource = config.get(CONF_RESOURCE)
@@ -91,10 +94,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         state_resource_template.hass = hass
         state_resource = state_resource_template.async_render(parse_result=False)
 
-    if headers is not None:
-        for header_template in headers.values():
-            header_template.hass = hass
-
     auth = None
     if username:
         auth = aiohttp.BasicAuth(username, password=password)
@@ -105,11 +104,15 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         body_on.hass = hass
     if body_off is not None:
         body_off.hass = hass
+
+    template.attach(hass, headers)
+    template.attach(hass, params)
     timeout = config.get(CONF_TIMEOUT)
 
     try:
         switch = RestSwitchMod(
             name,
+            device_class,
             resource,
             resource_template,
             state_resource,
@@ -126,7 +129,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         )
 
         req = await switch.get_device_state(hass)
-        if req.status >= HTTP_BAD_REQUEST:
+        if req.status >= HTTPStatus.BAD_REQUEST:
             _LOGGER.warning("[%s] Got non-ok response from resource: %s", name, req.status)
     except (TypeError, ValueError):
         _LOGGER.error(
@@ -146,6 +149,7 @@ class RestSwitchMod(SwitchEntity):
     def __init__(
         self,
         name,
+        device_class,
         resource,
         resource_template,
         state_resource,
@@ -177,6 +181,8 @@ class RestSwitchMod(SwitchEntity):
         self._timeout = timeout
         self._verify_ssl = verify_ssl
 
+        self._attr_device_class = device_class
+
     def set_url(self, url):
         """Set url."""
         self._resource = url
@@ -204,7 +210,7 @@ class RestSwitchMod(SwitchEntity):
         try:
             req = await self.set_device_state(body_on_t)
 
-            if req.status == HTTP_OK:
+            if req.status == HTTPStatus.OK:
                 self._state = True
             else:
                 _LOGGER.warning(
@@ -219,7 +225,7 @@ class RestSwitchMod(SwitchEntity):
 
         try:
             req = await self.set_device_state(body_off_t)
-            if req.status == HTTP_OK:
+            if req.status == HTTPStatus.OK:
                 self._state = False
             else:
                 _LOGGER.warning(
@@ -235,18 +241,16 @@ class RestSwitchMod(SwitchEntity):
         if self._resource_template is not None:
             self.set_url(self._resource_template.async_render(parse_result=False))
 
-        headers = {}
-        if self._headers:
-            for header_name, header_template in self._headers.items():
-                headers[header_name] = header_template.async_render(parse_result=False)
+        rendered_headers = template.render_complex(self._headers, parse_result=False)
+        rendered_params = template.render_complex(self._params)
 
-        with async_timeout.timeout(self._timeout):
+        async with async_timeout.timeout(self._timeout):
             req = await getattr(websession, self._method)(
                 self._resource,
                 auth=self._auth,
                 data=bytes(body, "utf-8"),
-                headers=headers,
-                params=self._params,
+                headers=rendered_headers,
+                params=rendered_params,
             )
             return req
 
@@ -274,17 +278,15 @@ class RestSwitchMod(SwitchEntity):
         if self._state_resource_template is not None:
             state_resource = self._state_resource_template.async_render(parse_result=False)
 
-        headers = {}
-        if self._headers:
-            for header_name, header_template in self._headers.items():
-                headers[header_name] = header_template.async_render(parse_result=False)
+        rendered_headers = template.render_complex(self._headers, parse_result=False)
+        rendered_params = template.render_complex(self._params)
 
-        with async_timeout.timeout(self._timeout):
+        async with async_timeout.timeout(self._timeout):
             req = await websession.get(
                 state_resource,
                 auth=self._auth,
-                headers=headers,
-                params=self._params,
+                headers=rendered_headers,
+                params=rendered_params,
             )
             text = await req.text()
 

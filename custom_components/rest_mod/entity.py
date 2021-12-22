@@ -18,7 +18,6 @@ class RestEntity(Entity):
         coordinator: DataUpdateCoordinator[Any],
         rest: RestDataMod,
         name,
-        device_class,
         resource_template,
         force_update,
         payload_template,
@@ -27,7 +26,6 @@ class RestEntity(Entity):
         self.coordinator = coordinator
         self.rest = rest
         self._name = name
-        self._device_class = device_class
         self._resource_template = resource_template
         self._force_update = force_update
         self._payload_template = payload_template
@@ -37,11 +35,6 @@ class RestEntity(Entity):
     def name(self):
         """Return the name of the sensor."""
         return self._name
-
-    @property
-    def device_class(self):
-        """Return the class of this sensor."""
-        return self._device_class
 
     @property
     def force_update(self):

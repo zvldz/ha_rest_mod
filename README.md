@@ -17,7 +17,6 @@ Add repository url. Category - Integration. Read more on https://hacs.xyz/docs/f
 * Added `state_resource_template`(switch).
 * Added `resource_template`(switch).
 * Added configuration variable `proxy_url`(sensor/binary_sensor). Support for http proxies only.
-* `headers` with template support(sensor/binary_sensor/switch).
 
 
 ## Example

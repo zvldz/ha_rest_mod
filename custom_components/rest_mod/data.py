@@ -3,6 +3,9 @@ import logging
 
 import httpx
 
+from homeassistant.helpers import template
+from homeassistant.helpers.httpx_client import get_async_client
+
 DEFAULT_TIMEOUT = 10
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,24 +60,23 @@ class RestDataMod:
 
     async def async_update(self, log_errors=True):
         """Get the latest data from REST service with provided method."""
-        headers = {}
-        if self._headers:
-            for header_name, header_template in self._headers.items():
-                headers[header_name] = header_template.async_render(parse_result=False)
-
         if not self._async_client:
             self._async_client = httpx.AsyncClient(verify=self._verify_ssl, proxies=self._proxies)
+
+        rendered_headers = template.render_complex(self._headers, parse_result=False)
+        rendered_params = template.render_complex(self._params)
 
         _LOGGER.debug("Updating from %s", self._resource)
         try:
             response = await self._async_client.request(
                 self._method,
                 self._resource,
-                headers=headers,
-                params=self._params,
+                headers=rendered_headers,
+                params=rendered_params,
                 auth=self._auth,
                 data=self._request_data,
                 timeout=self._timeout,
+                follow_redirects=True,
             )
             self.data = response.text
             self.headers = response.headers
